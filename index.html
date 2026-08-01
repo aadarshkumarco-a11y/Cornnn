@@ -1,1 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Catalog</title>
+    <style>
+        /* ─── RESET & BASE ─── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: #0d0d0d;
+            color: #e0e0e0;
+            padding: 20px;
+            min-height: 100vh;
+        }
 
+        /* ─── HEADER ─── */
+        header {
+            max-width: 1200px;
+            margin: 0 auto 30px auto;
+            text-align: center;
+            border-bottom: 1px solid #222;
+            padding-bottom: 20px;
+        }
+        header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            background: linear-gradient(135deg, #ff6b6b, #f06595);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .credit {
+            margin-top: 10px;
+            font-size: 15px;
+            color: #888;
+        }
+        .credit a {
+            color: #f06595;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .credit a:hover {
+            text-decoration: underline;
+            color: #ff6b6b;
+        }
+
+        /* ─── GRID ─── */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* ─── CARD ─── */
+        .media-item {
+            background: #1a1a1a;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+            border: 1px solid #2a2a2a;
+            cursor: pointer;
+        }
+        .media-item:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.6);
+            border-color: #f06595;
+        }
+        .media-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+            aspect-ratio: 16/9;
+            object-fit: cover;
+            background: #222;
+        }
+        .media-title {
+            padding: 14px 12px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #eee;
+            text-align: center;
+            line-height: 1.4;
+            border-top: 1px solid #2a2a2a;
+        }
+
+        /* ─── LOADING / ERROR ─── */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            font-size: 18px;
+            color: #aaa;
+        }
+        .loading::after {
+            content: " ⏳";
+            animation: pulse 1.2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: #ff6b6b;
+            font-size: 16px;
+        }
+        .error-detail {
+            color: #888;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        /* ─── VIDEO PLAYER OVERLAY ─── */
+        .player-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.92);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+        .player-overlay.active {
+            display: flex;
+        }
+        .player-box {
+            background: #1a1a1a;
+            border-radius: 16px;
+            max-width: 900px;
+            width: 100%;
+            padding: 20px;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+            border: 1px solid #333;
+        }
+        .player-box video {
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+            background: #000;
+            max-height: 70vh;
+        }
+        .player-title {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 14px;
+            text-align: center;
+        }
+        .close-btn {
+            position: absolute;
+            top: -14px;
+            right: -14px;
+            background: #ff6b6b;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 22px;
+            line-height: 40px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 700;
+            transition: background 0.2s;
+            box-shadow: 0 4px 12px rgba(255,107,107,0.4);
+        }
+        .close-btn:hover {
+            background: #e55a5a;
+        }
+        .fallback-msg {
+            text-align: center;
+            padding: 20px;
+            color: #f06595;
+            font-size: 16px;
+        }
+        .fallback-msg a {
+            color: #ff6b6b;
+            text-decoration: underline;
+        }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 600px) {
+            header h1 { font-size: 22px; }
+            .grid-container { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+            .media-title { font-size: 13px; padding: 10px; }
+            .close-btn { top: -10px; right: -10px; width: 34px; height: 34px; font-size: 18px; line-height: 34px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ═══ HEADER WITH CREDIT ═══ -->
+    <header>
+        <h1>🎬 Video Catalog</h1>
+        <div class="credit">
+            Made with ❤️ by
+            <a href="https://instagram.com/_aadarsh.9" target="_blank" rel="noopener noreferrer">
+                @_aadarsh.9
+            </a>
+        </div>
+    </header>
+
+    <!-- ═══ CATALOG GRID ═══ -->
+    <div id="catalog" class="grid-container">
+        <div class="loading">Loading catalog</div>
+    </div>
+
+    <!-- ═══ VIDEO PLAYER OVERLAY ═══ -->
+    <div id="playerOverlay" class="player-overlay">
+        <div class="player-box">
+            <button class="close-btn" id="closePlayerBtn">✕</button>
+            <video id="videoPlayer" controls preload="metadata"></video>
+            <div id="playerTitle" class="player-title">Video</div>
+            <div id="fallbackMsg" class="fallback-msg" style="display:none;">
+                Video cannot be played inline.
+                <br>
+                <a href="#" id="fallbackLink" target="_blank">Click here to open in a new tab</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ JAVASCRIPT ═══ -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+
+            const catalog = document.getElementById('catalog');
+            const overlay = document.getElementById('playerOverlay');
+            const video = document.getElementById('videoPlayer');
+            const titleEl = document.getElementById('playerTitle');
+            const closeBtn = document.getElementById('closePlayerBtn');
+            const fallbackMsg = document.getElementById('fallbackMsg');
+            const fallbackLink = document.getElementById('fallbackLink');
+
+            let currentVideoUrl = '';
+
+            // ── Load JSON ──
+            fetch('db.json')
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status} – ${res.statusText}`);
+                    return res.json();
+                })
+                .then(data => {
+                    catalog.innerHTML = '';
+
+                    if (!Array.isArray(data) || data.length === 0) {
+                        catalog.innerHTML = '<div class="error">No items found in the database.</div>';
+                        return;
+                    }
+
+                    data.forEach(item => {
+                        const card = document.createElement('div');
+                        card.className = 'media-item';
+
+                        const img = document.createElement('img');
+                        img.src = item.thumbnail || '';
+                        img.alt = item.title || 'Video';
+                        img.loading = 'lazy';
+                        img.onerror = function() { this.style.display = 'none'; };
+
+                        const title = document.createElement('div');
+                        title.className = 'media-title';
+                        title.textContent = item.title || 'Untitled';
+
+                        card.appendChild(img);
+                        card.appendChild(title);
+
+                        // ── Click → open player ──
+                        card.addEventListener('click', function() {
+                            const videoUrl = item.video;
+                            if (!videoUrl) {
+                                alert('No video URL available for this item.');
+                                return;
+                            }
+
+                            currentVideoUrl = videoUrl;
+                            video.src = videoUrl;
+                            video.load();
+                            titleEl.textContent = item.title || 'Video';
+                            fallbackMsg.style.display = 'none';
+                            fallbackLink.href = videoUrl;
+
+                            overlay.classList.add('active');
+
+                            // Try to play inline
+                            video.play()
+                                .then(() => {
+                                    // Success – video is playing inline
+                                })
+                                .catch(() => {
+                                    // Inline playback failed – show fallback link
+                                    fallbackMsg.style.display = 'block';
+                                });
+                        });
+
+                        catalog.appendChild(card);
+                    });
+                })
+                .catch(err => {
+                    console.error('Catalog error:', err);
+                    catalog.innerHTML = `
+                        <div class="error">⚠️ Failed to load catalog</div>
+                        <div class="error-detail">${err.message}</div>
+                        <div class="error-detail">Make sure <strong>db.json</strong> is in the same folder as this HTML file.</div>
+                    `;
+                });
+
+            // ── Close player ──
+            function closePlayer() {
+                overlay.classList.remove('active');
+                video.pause();
+                video.src = '';
+                video.load();
+                fallbackMsg.style.display = 'none';
+            }
+
+            closeBtn.addEventListener('click', closePlayer);
+
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) closePlayer();
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && overlay.classList.contains('active')) closePlayer();
+            });
+
+        });
+    </script>
+
+</body>
+</html>
